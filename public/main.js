@@ -1,47 +1,54 @@
-const { createApp, reactive, onMounted } = Vue;
+const { createApp, reactive, ref, onMounted } = Vue;
 
 createApp({
   setup() {
-    /* ---------------- state ---------------- */
-    const form = reactive({ username: '', password: '', captcha: '' });
-    const state = reactive({
-      captchaImg: '',
-      token: '',
-      cookie: '',
+    /* ------------ state ------------ */
+    const form   = reactive({ username: '', password: '', captcha: '' });
+    const state  = reactive({
+      captchaImg: '',     // base64
+      token: '',          // JSESSIONID 映射 token
+      cookie: '',         // 后端 set 的 login cookie
       courses: [],
       dialog: null,
-      loading: false,
-      err: '',
-      toastTimer: null,          // 控制错误提示
+      loading: false
     });
+    const toast = ref('');          // 错误提示文字
+    let   toastTimer = null;
 
-    /* ---------------- utils ---------------- */
-    const showError = (msg) => {
-      clearTimeout(state.toastTimer);
-      state.err = msg;
-      state.toastTimer = setTimeout(() => (state.err = ''), 4000);
+    /* ------------ helpers ------------ */
+    const showToast = (msg) => {
+      clearTimeout(toastTimer);
+      toast.value = msg;
+      toastTimer  = setTimeout(()=> toast.value='', 3000);
+    };
+    const saveCookie = (cookie) => {
+      localStorage.setItem('gdufs_cookie', JSON.stringify({
+        value: cookie, ts: Date.now()
+      }));
+    };
+    const loadCookie = () => {
+      const raw = localStorage.getItem('gdufs_cookie');
+      if (!raw) return '';
+      const { value, ts } = JSON.parse(raw);
+      return (Date.now() - ts < 30*60*1000) ? value : '';   // 30 min
     };
 
-    /* ---------------- captcha ---------------- */
+    /* ------------ captcha ------------ */
     const fetchCaptcha = async () => {
       state.loading = true;
       try {
         const { data } = await axios.get('/api/captcha');
-        state.token = data.token;
+        state.token      = data.token;
         state.captchaImg = data.img;
-        form.captcha = '';
-      } catch {
-        showError('验证码获取失败，请重试');
-      } finally {
-        state.loading = false;
-      }
+        form.captcha     = '';
+      } catch { showToast('验证码获取失败'); }
+      finally { state.loading = false; }
     };
 
-    /* ---------------- login ---------------- */
+    /* ------------ login ------------ */
     const login = async () => {
       if (!form.username || !form.password || !form.captcha) {
-        showError('请完整填写学号、密码和验证码');
-        return;
+        showToast('请填写全部信息'); return;
       }
       state.loading = true;
       try {
@@ -49,55 +56,52 @@ createApp({
           token: state.token,
           username: form.username,
           password: form.password,
-          captcha: form.captcha,
+          captcha:  form.captcha
         });
         state.cookie = data.cookie;
+        saveCookie(state.cookie);
         await loadGrades();
       } catch (e) {
-        showError(e.response?.data?.error || '登录失败，请检查输入');
+        showToast(e.response?.data?.error || '登录失败');
         await fetchCaptcha();
-      } finally {
-        state.loading = false;
-      }
+      } finally { state.loading = false; }
     };
 
-    /* ---------------- grade list ---------------- */
+    /* ------------ grades ------------ */
     const loadGrades = async () => {
       try {
-        const { data } = await axios.post('/api/grades', {
-          cookie: state.cookie,
-        });
+        const { data } = await axios.post('/api/grades', { cookie: state.cookie });
         state.courses = data;
-      } catch {
-        showError('成绩拉取失败，请刷新页面重试');
-      }
+      } catch { showToast('成绩获取失败'); }
     };
 
-    /* ---------------- detail ---------------- */
+    /* ------------ detail ------------ */
     const detail = async (course) => {
       try {
         const { data } = await axios.post('/api/detail', {
           cookie: state.cookie,
-          relurl: course.relurl,
+          relurl: course.relurl
         });
         state.dialog = { course: course.name, rows: data };
-      } catch {
-        showError('详情获取失败');
+      } catch { showToast('详情获取失败'); }
+    };
+
+    /* ------------ lifecycle ------------ */
+    onMounted(async () => {
+      // 先尝试复用 cookie
+      state.cookie = loadCookie();
+      if (state.cookie) {
+        await loadGrades().catch(()=>{ state.cookie=''; localStorage.removeItem('gdufs_cookie'); });
       }
-    };
+      if (!state.cookie) fetchCaptcha();
+    });
 
-    /* ---------------- lifecycle ---------------- */
-    onMounted(fetchCaptcha);
-
-    /* ---------------- expose to template ---------------- */
+    /* ------------ expose ------------ */
     return {
-      form,
-      ...state,
-      fetchCaptcha,
-      login,
-      detail,
-      /* 键盘回车提交 */
-      onKeyEnter: (e) => e.key === 'Enter' && login(),
+      form, state, toast,
+      fetchCaptcha, login, loadGrades, detail,
+      // keyup.enter 提交
+      onKey: (e) => { if (e.key === 'Enter') login(); }
     };
-  },
+  }
 }).mount('#app');

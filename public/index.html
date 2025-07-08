@@ -1,65 +1,96 @@
 <!doctype html>
 <html lang="zh-CN">
 <meta charset="utf-8">
-<title>GDUFS 成绩小助手</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link href="https://cdn.jsdelivr.net/npm/modern-normalize/modern-normalize.min.css" rel="stylesheet">
+<title>GDUFS 成绩小助手</title>
+
+<!-- 样式：极简、纯 CSS，后续可随意替换成 Tailwind / Bootstrap -->
+<style>
+  body              { font-family: Inter,"Microsoft YaHei",sans-serif; max-width:900px; margin:40px auto; text-align:center }
+  h1                { font-size:28px; margin-bottom:40px }
+  input             { width:200px; padding:6px 8px; margin:6px 0; border:1px solid #ccc; border-radius:4px }
+  button            { padding:6px 16px; border:1px solid #0d6efd; background:#0d6efd; color:#fff;
+                      border-radius:4px; cursor:pointer }
+  button:disabled   { background:#9ab7e4; border-color:#9ab7e4; cursor:not-allowed }
+  table             { margin:30px auto 0; border-collapse:collapse; width:100% }
+  th,td             { border:1px solid #ddd; padding:6px }
+  tr:nth-child(even){ background:#fafafa }
+  a                 { color:#0d6efd; text-decoration:none }
+  a:hover           { text-decoration:underline }
+  /* Toast */
+  #toast            { position:fixed; top:20px; left:50%; transform:translateX(-50%);
+                      background:#f44336; color:#fff; padding:8px 16px; border-radius:4px;
+                      z-index:9999; max-width:80%; word-break:break-all }
+</style>
+
+<!-- CDN 版 Vue & Axios -->
 <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios@1/dist/axios.min.js"></script>
-<style>
-body{font-family:Inter,"Microsoft YaHei",sans-serif;max-width:900px;margin:40px auto;}
-table{border-collapse:collapse;width:100%;margin-top:20px}
-th,td{border:1px solid #ddd;padding:6px 8px;text-align:center}
-tr:nth-child(even){background:#fafafa}
-button{padding:6px 12px;border:1px solid #09f;background:#09f;color:#fff;border-radius:4px;cursor:pointer}
-button:disabled{background:#888;border-color:#666}
-#dialog{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
-#dialog>div{background:#fff;padding:24px 32px;border-radius:8px;max-height:80vh;overflow:auto;min-width:680px}
-</style>
+
 <body>
 <div id="app">
+
   <h1>GDUFS 成绩小助手</h1>
 
-  <template v-if="!cookie">
-    <div>
-      <p><button @click="fetchCaptcha" :disabled="loading">刷新验证码</button></p>
-      <img :src="captchaImg" style="height:40px" v-if="captchaImg"><br><br>
-      <input v-model="form.username" placeholder="学号"><br>
-      <input v-model="form.password" type="password" placeholder="密码" style="margin-top:8px"><br>
-      <input v-model="form.captcha" placeholder="验证码" style="margin-top:8px"><br>
-      <button @click="login" :disabled="loading">{{loading?'登录中…':'登录'}}</button>
-      <p style="color:red" v-if="err">{{err}}</p>
-    </div>
+  <!-- Toast 错误提示 -->
+  <div id="toast" v-if="toast">{{ toast }}</div>
+
+  <!-- 未登录 -->
+  <template v-if="!state.cookie">
+    <button @click="fetchCaptcha" :disabled="state.loading" style="margin-bottom:20px">
+      刷新验证码
+    </button><br>
+    <img :src="state.captchaImg" v-if="state.captchaImg" @click="fetchCaptcha"
+         style="height:42px;margin-bottom:20px;cursor:pointer"><br>
+
+    <input v-model="form.username" placeholder="学号"       @keyup="onKey"><br>
+    <input v-model="form.password" placeholder="密码" type="password" @keyup="onKey"><br>
+    <input v-model="form.captcha"  placeholder="验证码"   @keyup="onKey"><br>
+
+    <button :disabled="state.loading" @click="login">
+      {{ state.loading ? '登录中…' : '登 录' }}
+    </button>
   </template>
 
+  <!-- 已登录 -->
   <template v-else>
-    <p>点击分数查看详细构成 ▼</p>
+    <p style="margin-bottom:10px;color:#666">点击分数查看详细构成 ▼</p>
     <table>
       <thead><tr><th>课程</th><th>总评</th></tr></thead>
       <tbody>
-        <tr v-for="c in courses" :key="c.relurl">
-          <td>{{c.name}}</td>
-          <td><a href="#" @click.prevent="detail(c)">{{c.score}}</a></td>
+        <tr v-for="c in state.courses" :key="c.relurl">
+          <td>{{ c.name }}</td>
+          <td><a href="#" @click.prevent="detail(c)">{{ c.score }}</a></td>
         </tr>
       </tbody>
     </table>
   </template>
 
-  <div id="dialog" v-if="dialog" @click.self="dialog=null">
-    <div>
-      <h3>{{dialog.course}}</h3>
+  <!-- 详情弹窗 -->
+  <div v-if="state.dialog"
+       style="position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center"
+       @click.self="state.dialog=null">
+    <div style="background:#fff;padding:28px 36px;border-radius:8px;max-height:80vh;overflow:auto;min-width:680px">
+      <h3 style="margin-top:0">{{ state.dialog.course }}</h3>
       <table>
-        <thead><tr>
-          <th>平时</th><th>%</th><th>期中</th><th>%</th>
-          <th>期末</th><th>%</th><th>总评</th></tr></thead>
-        <tbody><tr v-for="r in dialog.rows">
-          <td>{{r['平时成绩']}}</td><td>{{r['平时比例']}}</td>
-          <td>{{r['期中成绩']}}</td><td>{{r['期中比例']}}</td>
-          <td>{{r['期末成绩']}}</td><td>{{r['期末比例']}}</td>
-          <td>{{r['总成绩']}}</td>
-        </tr></tbody>
+        <thead>
+          <tr><th>平时</th><th>%</th><th>期中</th><th>%</th><th>期末</th><th>%</th><th>总评</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in state.dialog.rows">
+            <td>{{ r['平时成绩'] }}</td><td>{{ r['平时比例'] }}</td>
+            <td>{{ r['期中成绩'] }}</td><td>{{ r['期中比例'] }}</td>
+            <td>{{ r['期末成绩'] }}</td><td>{{ r['期末比例'] }}</td>
+            <td>{{ r['总成绩'] }}</td>
+          </tr>
+        </tbody>
       </table>
     </div>
   </div>
+
 </div>
+
+<!-- 刚才改好的 main.js V2 -->
 <script src="main.js"></script>
+</body>
+</html>
