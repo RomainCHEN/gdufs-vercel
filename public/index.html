@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>GDUFS 成绩小助手</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://cdn.jsdelivr.net/npm/modern-normalize/modern-normalize.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios@1/dist/axios.min.js"></script>
+<style>
+body{font-family:Inter,"Microsoft YaHei",sans-serif;max-width:900px;margin:40px auto;}
+table{border-collapse:collapse;width:100%;margin-top:20px}
+th,td{border:1px solid #ddd;padding:6px 8px;text-align:center}
+tr:nth-child(even){background:#fafafa}
+button{padding:6px 12px;border:1px solid #09f;background:#09f;color:#fff;border-radius:4px;cursor:pointer}
+button:disabled{background:#888;border-color:#666}
+#dialog{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
+#dialog>div{background:#fff;padding:24px 32px;border-radius:8px;max-height:80vh;overflow:auto;min-width:680px}
+</style>
+<body>
+<div id="app">
+  <h1>GDUFS 成绩小助手</h1>
+
+  <template v-if="!cookie">
+    <div>
+      <p><button @click="fetchCaptcha" :disabled="loading">刷新验证码</button></p>
+      <img :src="captchaImg" style="height:40px" v-if="captchaImg"><br><br>
+      <input v-model="form.username" placeholder="学号"><br>
+      <input v-model="form.password" type="password" placeholder="密码" style="margin-top:8px"><br>
+      <input v-model="form.captcha" placeholder="验证码" style="margin-top:8px"><br>
+      <button @click="login" :disabled="loading">{{loading?'登录中…':'登录'}}</button>
+      <p style="color:red" v-if="err">{{err}}</p>
+    </div>
+  </template>
+
+  <template v-else>
+    <p>点击分数查看详细构成 ▼</p>
+    <table>
+      <thead><tr><th>课程</th><th>总评</th></tr></thead>
+      <tbody>
+        <tr v-for="c in courses" :key="c.relurl">
+          <td>{{c.name}}</td>
+          <td><a href="#" @click.prevent="detail(c)">{{c.score}}</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </template>
+
+  <div id="dialog" v-if="dialog" @click.self="dialog=null">
+    <div>
+      <h3>{{dialog.course}}</h3>
+      <table>
+        <thead><tr>
+          <th>平时</th><th>%</th><th>期中</th><th>%</th>
+          <th>期末</th><th>%</th><th>总评</th></tr></thead>
+        <tbody><tr v-for="r in dialog.rows">
+          <td>{{r['平时成绩']}}</td><td>{{r['平时比例']}}</td>
+          <td>{{r['期中成绩']}}</td><td>{{r['期中比例']}}</td>
+          <td>{{r['期末成绩']}}</td><td>{{r['期末比例']}}</td>
+          <td>{{r['总成绩']}}</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script src="main.js"></script>
