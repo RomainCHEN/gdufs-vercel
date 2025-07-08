@@ -2,7 +2,7 @@
   "functions": {
     "api/*.py": {
       "runtime": "python3.11",
-      "maxDuration": 20             /* 登录+抓取有余 */
+      "maxDuration": 20
     }
   },
   "routes": [
