@@ -7,6 +7,5 @@
     { "src": "/api/(.*)", "dest": "/api/$1.py" },
 
     { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+    { "src": "/(.*)", "dest": "/public/index.html" }
 }
