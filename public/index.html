@@ -4,55 +4,46 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GDUFS 成绩小助手</title>
 
-<!-- 样式：极简、纯 CSS，后续可随意替换成 Tailwind / Bootstrap -->
 <style>
-  body              { font-family: Inter,"Microsoft YaHei",sans-serif; max-width:900px; margin:40px auto; text-align:center }
-  h1                { font-size:28px; margin-bottom:40px }
-  input             { width:200px; padding:6px 8px; margin:6px 0; border:1px solid #ccc; border-radius:4px }
-  button            { padding:6px 16px; border:1px solid #0d6efd; background:#0d6efd; color:#fff;
-                      border-radius:4px; cursor:pointer }
-  button:disabled   { background:#9ab7e4; border-color:#9ab7e4; cursor:not-allowed }
-  table             { margin:30px auto 0; border-collapse:collapse; width:100% }
-  th,td             { border:1px solid #ddd; padding:6px }
-  tr:nth-child(even){ background:#fafafa }
-  a                 { color:#0d6efd; text-decoration:none }
-  a:hover           { text-decoration:underline }
-  /* Toast */
-  #toast            { position:fixed; top:20px; left:50%; transform:translateX(-50%);
-                      background:#f44336; color:#fff; padding:8px 16px; border-radius:4px;
-                      z-index:9999; max-width:80%; word-break:break-all }
+  body{font-family:Inter,"Microsoft YaHei",sans-serif;max-width:900px;margin:40px auto;text-align:center}
+  h1{font-size:28px;margin-bottom:40px}
+  input{width:200px;padding:6px 8px;margin:6px 0;border:1px solid #ccc;border-radius:4px}
+  button{padding:6px 16px;border:1px solid #0d6efd;background:#0d6efd;color:#fff;border-radius:4px;cursor:pointer}
+  button:disabled{background:#9ab7e4;border-color:#9ab7e4;cursor:not-allowed}
+  table{margin:30px auto 0;border-collapse:collapse;width:100%}
+  th,td{border:1px solid #ddd;padding:6px}
+  tr:nth-child(even){background:#fafafa}
+  a{color:#0d6efd;text-decoration:none}
+  a:hover{text-decoration:underline}
+  #toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#f44336;color:#fff;
+         padding:8px 16px;border-radius:4px;z-index:9999;max-width:80%;word-break:break-all}
 </style>
 
-<!-- CDN 版 Vue & Axios -->
+<!-- CDN Vue & Axios -->
 <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios@1/dist/axios.min.js"></script>
 
 <body>
 <div id="app">
-
   <h1>GDUFS 成绩小助手</h1>
 
-  <!-- Toast 错误提示 -->
+  <!-- Toast -->
   <div id="toast" v-if="toast">{{ toast }}</div>
 
-  <!-- 未登录 -->
+  <!-- 登录区 -->
   <template v-if="!state.cookie">
-    <button @click="fetchCaptcha" :disabled="state.loading" style="margin-bottom:20px">
-      刷新验证码
-    </button><br>
+    <button @click="fetchCaptcha" :disabled="state.loading" style="margin-bottom:20px">刷新验证码</button><br>
     <img :src="state.captchaImg" v-if="state.captchaImg" @click="fetchCaptcha"
          style="height:42px;margin-bottom:20px;cursor:pointer"><br>
 
-    <input v-model="form.username" placeholder="学号"       @keyup="onKey"><br>
-    <input v-model="form.password" placeholder="密码" type="password" @keyup="onKey"><br>
-    <input v-model="form.captcha"  placeholder="验证码"   @keyup="onKey"><br>
+    <input v-model="form.username" placeholder="学号" @keyup="onKey"><br>
+    <input v-model="form.password" type="password" placeholder="密码" @keyup="onKey"><br>
+    <input v-model="form.captcha"  placeholder="验证码"  @keyup="onKey"><br>
 
-    <button :disabled="state.loading" @click="login">
-      {{ state.loading ? '登录中…' : '登 录' }}
-    </button>
+    <button :disabled="state.loading" @click="login">{{ state.loading ? '登录中…' : '登 录' }}</button>
   </template>
 
-  <!-- 已登录 -->
+  <!-- 成绩表 -->
   <template v-else>
     <p style="margin-bottom:10px;color:#666">点击分数查看详细构成 ▼</p>
     <table>
@@ -68,14 +59,12 @@
 
   <!-- 详情弹窗 -->
   <div v-if="state.dialog"
-       style="position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center"
-       @click.self="state.dialog=null">
+       style="position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;
+              align-items:center;justify-content:center" @click.self="state.dialog=null">
     <div style="background:#fff;padding:28px 36px;border-radius:8px;max-height:80vh;overflow:auto;min-width:680px">
       <h3 style="margin-top:0">{{ state.dialog.course }}</h3>
       <table>
-        <thead>
-          <tr><th>平时</th><th>%</th><th>期中</th><th>%</th><th>期末</th><th>%</th><th>总评</th></tr>
-        </thead>
+        <thead><tr><th>平时</th><th>%</th><th>期中</th><th>%</th><th>期末</th><th>%</th><th>总评</th></tr></thead>
         <tbody>
           <tr v-for="r in state.dialog.rows">
             <td>{{ r['平时成绩'] }}</td><td>{{ r['平时比例'] }}</td>
@@ -87,10 +76,8 @@
       </table>
     </div>
   </div>
-
 </div>
 
-<!-- 刚才改好的 main.js V2 -->
 <script src="main.js"></script>
 </body>
 </html>
