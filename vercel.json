@@ -1,11 +1,24 @@
 {
   "version": 2,
+
   "builds": [
-    { "src": "api/**/*.py", "use": "@vercel/python" }
+    {
+      "src": "api/**/*.py",
+      "use": "@vercel/python"
+    }
   ],
+
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1.py" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }   /* ← 只保留这一条回退 */
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1.py"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
   ]
 }
